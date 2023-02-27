@@ -2,7 +2,10 @@
 
 ## Code
 
-The R markdown code is `step1_check_data.Rmd` and the results are in the html file `step1_check_data.html`.
+The R markdown code is `step1_check_data.Rmd` and the results are in the html file `step1_check_data.html`. The results can also be viewed in a browser using the corresponding .md file:
+
+https://github.com/sunway1999/DS_hearing/blob/main/step1_check_data.md
+
 
 ## List of files to make prediction of school enrollment
 
