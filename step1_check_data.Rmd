@@ -1,0 +1,209 @@
+---
+title: "Check "
+author: "DS hearing group"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+    number_sections: false
+  df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 80)
+```
+
+## Load R libraries
+```{r load_libraries, warning = FALSE, message = FALSE}
+library(data.table)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(readxl)
+library(tidyr)
+
+theme_set(theme_classic())
+```
+
+## Demographic data from Washington state OFM
+
+Small Area Demographic Estimates (SADE) by School district, downloaded from Office of Financial Management (OFM) website
+
+```{r fig.width=8, fig.height=3}
+sade = read_excel("ofm_pop_sade_sduni_2010_to_2020.xlsx", 
+                         sheet = "Total")
+dim(sade)
+sade[1:2,]
+
+school_districts = c("Bellevue School District", 
+                    "Lake Washington School District", 
+                    "Issaquah School District",
+                    "Seattle School District")
+
+stopifnot(all(school_districts %in% sade$`Area Name`))
+
+sade = sade[sade$`Area Name` %in% school_districts,]
+table(sade$`Age Group`)
+
+sade = as.data.table(sade[,1:7])
+
+age_groups = c("0-4", "5-9", "10-14", "30-34", "35-39", "40-44", "45-49")
+sade = sade[`Age Group` %in% age_groups, ]
+
+table(sade$`Area Name`)
+table(sade$Year)
+sade[1:2,]
+sade$Year   = as.numeric(sade$Year)
+sade$Total  = as.numeric(sade$Total)
+sade$Male   = as.numeric(sade$Male)
+sade$Female = as.numeric(sade$Female)
+
+sade$Age_set = "Young_adults"
+sade[`Age Group` %in% c("0-4", "5-9", "10-14"), Age_set:= "kids"]
+
+dim(sade)
+sade[1:2,]
+
+sade$`Age Group` = factor(sade$`Age Group`, 
+                                 levels=age_groups)
+```
+
+### Bellevue
+```{r fig.width=8, fig.height=3}
+
+plot1 <- function(df, age, area){
+  df1 = df[df$Age_set == age & df$`Area Name` == area, ]
+  g1 = ggplot(df1, aes(x=Year, y=Total, color=`Age Group`, shape=`Age Group`)) +
+    geom_point() + geom_smooth(method=loess) + 
+    scale_x_continuous("Year", seq(2010, 2020, by=2), seq(2010, 2020, by=2)) + 
+    ggtitle(area)
+  g1
+}
+
+g1 = plot1(sade, age="kids", area="Bellevue School District")
+g2 = plot1(sade, age="Young_adults", area="Bellevue School District")
+
+ggarrange(g1, g2)
+```
+
+### Seattle
+
+```{r fig.width=8, fig.height=3}
+
+g1 = plot1(sade, age="kids", area="Seattle School District")
+g2 = plot1(sade, age="Young_adults", area="Seattle School District")
+
+ggarrange(g1, g2)
+```
+
+
+### Lake Washington
+
+```{r fig.width=8, fig.height=3}
+
+g1 = plot1(sade, age="kids", area="Lake Washington School District")
+g2 = plot1(sade, age="Young_adults", area="Lake Washington School District")
+
+ggarrange(g1, g2)
+```
+
+### Issaquah
+
+```{r fig.width=8, fig.height=3}
+
+g1 = plot1(sade, age="kids", area="Issaquah School District")
+g2 = plot1(sade, age="Young_adults", area="Issaquah School District")
+
+ggarrange(g1, g2)
+```
+
+## Demographic data from US Census
+
+```{r fig.width=6, fig.height=9}
+years = 2011:2021
+dat_all = NULL
+zips  = 98004:98008
+
+age_grp1 = paste0("Total!!Estimate!!AGE!!", 
+                 c("Under 5 years", "5 to 9 years", "10 to 14 years"))
+
+age_grp2 = paste0("Estimate!!Total!!Total population!!AGE!!", 
+                 c("Under 5 years", "5 to 9 years", "10 to 14 years"))
+
+for(y1 in years){
+  dat = fread(sprintf("US_census/ACSST5Y%d.S0101-Data.csv", y1), skip=1)
+  dim(dat)
+  dat[1:5,1:3]
+
+  
+  if(y1 <= 2016){
+    cols2use = c("Geographic Area Name", 
+                 "Total!!Estimate!!Total population", 
+                 age_grp1)
+  }else{
+    cols2use = c("Geographic Area Name", 
+                 "Estimate!!Total!!Total population", 
+                 age_grp2)
+  }
+  
+  stopifnot(all(cols2use %in% names(dat)))
+
+  dat = dat[,..cols2use]
+  names(dat) = c("zipcode", "total", "0-4", "5-9", "10-14")
+  dat$zipcode = gsub("ZCTA5 ", "", dat$zipcode)
+  
+  if(y1 <= 2016){
+    dat[,3:5] = round(dat[,3:5]*dat$total/100)
+  }
+  
+  dat = rbind(dat, data.table(zipcode="all", t(colSums(dat[,-1]))))
+  print(y1)
+  print(dat)
+  dat$Year = y1
+
+  dat_all = rbind(dat_all, dat)
+}
+
+dim(dat_all)
+dat_all[1:10,]
+
+df1 = pivot_longer(dat_all, cols=c("0-4", "5-9", "10-14"),
+                   names_to = "Age Group", values_to = "Total")
+df1 = as.data.frame(df1)
+dim(df1)
+df1[1:3,]
+
+df1$`Age Group` = factor(df1$`Age Group`, 
+                         levels=c("0-4", "5-9", "10-14"))
+
+glist = list()
+for(zip1 in c(98004:98008, "all")){
+  df2 = df1[df1$zipcode==zip1,]
+  glist[[zip1]] = ggplot(df2, aes(x=Year, y=Total, 
+                          color=`Age Group`, shape=`Age Group`)) +
+    geom_point() + geom_smooth(method=loess) + 
+    scale_x_continuous("Year", seq(2011, 2021, by=2), seq(2011, 2021, by=2)) + 
+    ggtitle(zip1)
+}
+
+ggarrange(plotlist = glist, legend = "top", common.legend = TRUE, 
+          ncol = 2, nrow = 3)
+
+```
+
+# Session information
+```{r}
+gc()
+
+sessionInfo()
+```
+
+
+
