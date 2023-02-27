@@ -21,6 +21,13 @@ Census data with filters on Zip codes: 98004-98008
 
 https://data.census.gov/table
 
+## censusreporter.org
+
+https://censusreporter.org/data/table/?table=B01001&geo_ids=97000US5300390,150|97000US5300390,150|97000US5300390,150|97000US5300390#valueType|percentage
+
+
+https://censusreporter.org/data/table/?table=B01001&geo_ids=97000US5300390#valueType|estimate
+
 ## Report_Card_Enrollment
 
 School enrollment infomration downloaded from Washington Office of Superintendent of Public Instruction
